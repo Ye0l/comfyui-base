@@ -219,6 +219,12 @@ EXPOSE 8188 22 8888 8080
 # Copy start script
 COPY start.sh /start.sh
 
+# Add custom wrapper/hooks
+COPY scripts/entrypoint.sh /entrypoint.sh
+COPY scripts/custom-before-comfyui.sh /custom-before-comfyui.sh
+
+RUN chmod +x /start.sh /entrypoint.sh /custom-before-comfyui.sh
+
 # Set Python 3.12 as default
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
     update-alternatives --set python3 /usr/bin/python3.12
