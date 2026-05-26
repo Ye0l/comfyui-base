@@ -223,4 +223,4 @@ COPY start.sh /start.sh
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
     update-alternatives --set python3 /usr/bin/python3.12
 
-ENTRYPOINT ["/start.sh"]
+ENTRYPOINT ["/pre-start.sh"]
