@@ -94,14 +94,9 @@ RUN cd /tmp/build/ComfyUI && \
     git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "ComfyUI-Impact-Subpack ${IMPACT_SUBPACK_SHA}" && \
     git remote add origin https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git
 
-# Generate lock file from all requirements (including torch pins), then install with hash verification
+# Generate lock file for core requirements only, then install
 WORKDIR /tmp/build
 RUN cat ComfyUI/requirements.txt > requirements.in && \
-    for node_dir in ComfyUI/custom_nodes/*/; do \
-        if [ -f "$node_dir/requirements.txt" ]; then \
-            cat "$node_dir/requirements.txt" >> requirements.in; \
-        fi; \
-    done && \
     echo "GitPython" >> requirements.in && \
     echo "opencv-python" >> requirements.in && \
     echo "jupyter" >> requirements.in && \
@@ -120,6 +115,17 @@ RUN cat ComfyUI/requirements.txt > requirements.in && \
     --index-url https://pypi.org/simple \
     --extra-index-url "${TORCH_INDEX_URL}" \
     -r requirements.lock
+
+# Install custom nodes' requirements separately (to avoid hash resolution conflicts for 3rd party nodes)
+RUN for node_dir in ComfyUI/custom_nodes/*/; do \
+        if [ -f "$node_dir/requirements.txt" ]; then \
+            echo "Installing requirements for $(basename "$node_dir")..." && \
+            python3.12 -m pip install --no-cache-dir \
+            --index-url https://pypi.org/simple \
+            --extra-index-url "https://download.pytorch.org/whl/${TORCH_INDEX_SUFFIX}" \
+            -r "$node_dir/requirements.txt"; \
+        fi; \
+    done
 
 # Pre-populate ComfyUI-Manager cache so first cold start skips the slow registry fetch
 COPY scripts/prebake-manager-cache.py /tmp/prebake-manager-cache.py
