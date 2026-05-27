@@ -19,10 +19,10 @@ variable "RUNPODDIRECT_SHA" {
   default = "8be7b2206b75"
 }
 variable "IMPACT_PACK_SHA" {
-  default = "767098e9a263"
+  default = "429d0159ad42"
 }
 variable "IMPACT_SUBPACK_SHA" {
-  default = "9c238b707447"
+  default = "50c7b71a6a22"
 }
 # Regular image (cu128)
 variable "TORCH_VERSION" {
