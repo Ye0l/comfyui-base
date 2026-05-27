@@ -6,6 +6,14 @@ echo "[custom] custom-before-comfyui.sh started"
 : "${HF_BUCKET_MODELS_URI:?HF_BUCKET_MODELS_URI is required}"
 
 COMFYUI_DIR="${COMFYUI_DIR:-/workspace/runpod-slim/ComfyUI}"
+VENV_DIR="$COMFYUI_DIR/.venv-cu128"
+PYTHON_EXE="$VENV_DIR/bin/python"
+
+if [ ! -x "$PYTHON_EXE" ]; then
+  echo "[custom] WARNING: venv python not found at $PYTHON_EXE, falling back to system python"
+  PYTHON_EXE="python"
+fi
+
 SYNC_ROOT="${SYNC_ROOT:-/workspace/hf-bucket-sync}"
 
 DOWNLOADED_MODELS_DIR="$SYNC_ROOT/models"
@@ -15,7 +23,10 @@ COMFYUI_MODELS_DIR="$COMFYUI_DIR/models"
 COMFYUI_WORKFLOWS_DIR="$COMFYUI_DIR/user/default/workflows"
 
 echo "[custom] installing huggingface-hub"
-python -m pip install -U "huggingface-hub"
+"$PYTHON_EXE" -m pip install -U "huggingface-hub"
+
+# Use the hf command from the venv if available
+export PATH="$VENV_DIR/bin:$PATH"
 
 command -v hf >/dev/null 2>&1 || {
   echo "[custom] ERROR: hf command not found" >&2
@@ -64,17 +75,6 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
     chmod +x "$script"
     bash "$script"
   done < <(find "$DOWNLOADED_WORKFLOWS_DIR" -type f \( -name "install.sh" -o -name "setup.sh" \) | sort)
-fi
-
-echo "[custom] final links:"
-echo "[custom] models    -> $(readlink -f "$COMFYUI_MODELS_DIR" || true)"
-
-if [ -L "$COMFYUI_WORKFLOWS_DIR" ]; then
-  echo "[custom] workflows -> $(readlink -f "$COMFYUI_WORKFLOWS_DIR" || true)"
-fi
-
-echo "[custom] done"
- \( -name "install.sh" -o -name "setup.sh" \) | sort)
 fi
 
 echo "[custom] final links:"
