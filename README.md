@@ -15,10 +15,16 @@ Run the latest ComfyUI. All dependencies are pre-installed in the image. On firs
 - ComfyUI-KJNodes
 - Civicomfy
 - ComfyUI-RunpodDirect
+- ComfyUI-Impact-Pack
+- ComfyUI-Impact-Subpack
 
 ## Source Code
 
 This is an open source template. Source code available at: [github.com/runpod-workers/comfyui-base](https://github.com/runpod-workers/comfyui-base)
+
+## Customization
+
+- `CUSTOM_SCRIPT_URL`: URL to a shell script to fetch and run before ComfyUI starts. This replaces the previous hardcoded boot hook.
 
 ## Custom Arguments
 

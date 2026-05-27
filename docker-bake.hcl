@@ -18,6 +18,12 @@ variable "CIVICOMFY_SHA" {
 variable "RUNPODDIRECT_SHA" {
   default = "8be7b2206b75"
 }
+variable "IMPACT_PACK_SHA" {
+  default = "767098e9a263"
+}
+variable "IMPACT_SUBPACK_SHA" {
+  default = "9c238b707447"
+}
 # Regular image (cu128)
 variable "TORCH_VERSION" {
   default = "2.10.0+cu128"
@@ -60,6 +66,8 @@ target "common" {
     KJNODES_SHA         = KJNODES_SHA
     CIVICOMFY_SHA       = CIVICOMFY_SHA
     RUNPODDIRECT_SHA    = RUNPODDIRECT_SHA
+    IMPACT_PACK_SHA     = IMPACT_PACK_SHA
+    IMPACT_SUBPACK_SHA  = IMPACT_SUBPACK_SHA
     TORCH_VERSION       = TORCH_VERSION
     TORCHVISION_VERSION = TORCHVISION_VERSION
     TORCHAUDIO_VERSION  = TORCHAUDIO_VERSION

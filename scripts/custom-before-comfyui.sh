@@ -56,7 +56,7 @@ echo "[custom] installing workflow dependencies"
 if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
   while IFS= read -r req; do
     echo "[custom] pip install -r $req"
-    python -m pip install -r "$req"
+    "$PYTHON_EXE" -m pip install -r "$req"
   done < <(find "$DOWNLOADED_WORKFLOWS_DIR" -type f -name "requirements.txt" | sort)
 
   while IFS= read -r script; do
@@ -64,6 +64,17 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
     chmod +x "$script"
     bash "$script"
   done < <(find "$DOWNLOADED_WORKFLOWS_DIR" -type f \( -name "install.sh" -o -name "setup.sh" \) | sort)
+fi
+
+echo "[custom] final links:"
+echo "[custom] models    -> $(readlink -f "$COMFYUI_MODELS_DIR" || true)"
+
+if [ -L "$COMFYUI_WORKFLOWS_DIR" ]; then
+  echo "[custom] workflows -> $(readlink -f "$COMFYUI_WORKFLOWS_DIR" || true)"
+fi
+
+echo "[custom] done"
+ \( -name "install.sh" -o -name "setup.sh" \) | sort)
 fi
 
 echo "[custom] final links:"

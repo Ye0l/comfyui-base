@@ -11,6 +11,8 @@ ARG MANAGER_SHA
 ARG KJNODES_SHA
 ARG CIVICOMFY_SHA
 ARG RUNPODDIRECT_SHA
+ARG IMPACT_PACK_SHA
+ARG IMPACT_SUBPACK_SHA
 ARG TORCH_VERSION
 ARG TORCHVISION_VERSION
 ARG TORCHAUDIO_VERSION
@@ -62,7 +64,11 @@ RUN curl -fSL "https://github.com/ltdrdata/ComfyUI-Manager/archive/${MANAGER_SHA
     curl -fSL "https://github.com/MoonGoblinDev/Civicomfy/archive/${CIVICOMFY_SHA}.tar.gz" -o civicomfy.tar.gz && \
     mkdir -p Civicomfy && tar xzf civicomfy.tar.gz --strip-components=1 -C Civicomfy && rm civicomfy.tar.gz && \
     curl -fSL "https://github.com/MadiatorLabs/ComfyUI-RunpodDirect/archive/${RUNPODDIRECT_SHA}.tar.gz" -o runpoddirect.tar.gz && \
-    mkdir -p ComfyUI-RunpodDirect && tar xzf runpoddirect.tar.gz --strip-components=1 -C ComfyUI-RunpodDirect && rm runpoddirect.tar.gz
+    mkdir -p ComfyUI-RunpodDirect && tar xzf runpoddirect.tar.gz --strip-components=1 -C ComfyUI-RunpodDirect && rm runpoddirect.tar.gz && \
+    curl -fSL "https://github.com/ltdrdata/ComfyUI-Impact-Pack/archive/${IMPACT_PACK_SHA}.tar.gz" -o impact-pack.tar.gz && \
+    mkdir -p ComfyUI-Impact-Pack && tar xzf impact-pack.tar.gz --strip-components=1 -C ComfyUI-Impact-Pack && rm impact-pack.tar.gz && \
+    curl -fSL "https://github.com/ltdrdata/ComfyUI-Impact-Subpack/archive/${IMPACT_SUBPACK_SHA}.tar.gz" -o impact-subpack.tar.gz && \
+    mkdir -p ComfyUI-Impact-Subpack && tar xzf impact-subpack.tar.gz --strip-components=1 -C ComfyUI-Impact-Subpack && rm impact-subpack.tar.gz
 
 # Init git repos with upstream remotes so ComfyUI-Manager can detect versions
 # and users can update via Manager at their own risk
@@ -80,7 +86,13 @@ RUN cd /tmp/build/ComfyUI && \
     git remote add origin https://github.com/MoonGoblinDev/Civicomfy.git && \
     cd /tmp/build/ComfyUI/custom_nodes/ComfyUI-RunpodDirect && \
     git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "ComfyUI-RunpodDirect ${RUNPODDIRECT_SHA}" && \
-    git remote add origin https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git
+    git remote add origin https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git && \
+    cd /tmp/build/ComfyUI/custom_nodes/ComfyUI-Impact-Pack && \
+    git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "ComfyUI-Impact-Pack ${IMPACT_PACK_SHA}" && \
+    git remote add origin https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
+    cd /tmp/build/ComfyUI/custom_nodes/ComfyUI-Impact-Subpack && \
+    git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "ComfyUI-Impact-Subpack ${IMPACT_SUBPACK_SHA}" && \
+    git remote add origin https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git
 
 # Generate lock file from all requirements (including torch pins), then install with hash verification
 WORKDIR /tmp/build
