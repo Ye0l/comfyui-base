@@ -73,13 +73,15 @@ jobs:
           TAG: ${{ env.RELEASE_VERSION }}
         with:
           push: true
+          no-cache: true        # 추가
+          pull: true            # 추가 (베이스 이미지도 새로)
           files: ./docker-bake.hcl
           targets: |
             cuda13
 
       - name: Clean up Docker build cache
         run: |
-          docker builder prune -af --filter "until=1h"
+          docker builder prune -af
           docker system prune -af --volumes
 
       - name: Build and push regular image
@@ -88,6 +90,8 @@ jobs:
           TAG: ${{ env.RELEASE_VERSION }}
         with:
           push: true
+          no-cache: true        # 추가
+          pull: true            # 추가
           files: ./docker-bake.hcl
           targets: |
             regular
