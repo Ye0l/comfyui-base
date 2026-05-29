@@ -50,6 +50,13 @@ variable "FILEBROWSER_VERSION" {
 variable "FILEBROWSER_SHA256" {
   default = "8cd8c3baecb086028111b912f252a6e3169737fa764b5c510139e81f9da87799"
 }
+variable "EASYUSE_SHA" {
+  default = "b5e31ef..."   # yolain/ComfyUI-Easy-Use v1.3.6 full SHA
+}
+
+variable "EFFICIENCY_SHA" {
+  default = "3ead4af..."   # jags111/efficiency-nodes-comfyui full SHA
+}
 
 group "default" {
   targets = ["common", "dev"]
