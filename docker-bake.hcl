@@ -51,11 +51,11 @@ variable "FILEBROWSER_SHA256" {
   default = "8cd8c3baecb086028111b912f252a6e3169737fa764b5c510139e81f9da87799"
 }
 variable "EASYUSE_SHA" {
-  default = "b5e31ef..."   # yolain/ComfyUI-Easy-Use v1.3.6 full SHA
+  default = "5618a748c14858a6e95a583baa28bb7c8da7976a"   # yolain/ComfyUI-Easy-Use v1.3.6 full SHA
 }
 
 variable "EFFICIENCY_SHA" {
-  default = "3ead4af..."   # jags111/efficiency-nodes-comfyui full SHA
+  default = "4579b7d6076b2870998a08f5d37883fbc8261ff2"   # jags111/efficiency-nodes-comfyui full SHA
 }
 
 group "default" {
