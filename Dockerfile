@@ -16,6 +16,8 @@ ARG IMPACT_SUBPACK_SHA
 ARG TORCH_VERSION
 ARG TORCHVISION_VERSION
 ARG TORCHAUDIO_VERSION
+ARG EASYUSE_SHA
+ARG EFFICIENCY_SHA
 
 # ---- CUDA variant (set in docker-bake.hcl per target) ----
 ARG CUDA_VERSION_DASH=12-8
@@ -68,7 +70,11 @@ RUN curl -fSL "https://github.com/ltdrdata/ComfyUI-Manager/archive/${MANAGER_SHA
     curl -fSL "https://github.com/ltdrdata/ComfyUI-Impact-Pack/archive/${IMPACT_PACK_SHA}.tar.gz" -o impact-pack.tar.gz && \
     mkdir -p ComfyUI-Impact-Pack && tar xzf impact-pack.tar.gz --strip-components=1 -C ComfyUI-Impact-Pack && rm impact-pack.tar.gz && \
     curl -fSL "https://github.com/ltdrdata/ComfyUI-Impact-Subpack/archive/${IMPACT_SUBPACK_SHA}.tar.gz" -o impact-subpack.tar.gz && \
-    mkdir -p ComfyUI-Impact-Subpack && tar xzf impact-subpack.tar.gz --strip-components=1 -C ComfyUI-Impact-Subpack && rm impact-subpack.tar.gz
+    mkdir -p ComfyUI-Impact-Subpack && tar xzf impact-subpack.tar.gz --strip-components=1 -C ComfyUI-Impact-Subpack && rm impact-subpack.tar.gz && \
+    curl -fSL "https://github.com/yolain/ComfyUI-Easy-Use/archive/${EASYUSE_SHA}.tar.gz" -o easyuse.tar.gz && \
+    mkdir -p ComfyUI-Easy-Use && tar xzf easyuse.tar.gz --strip-components=1 -C ComfyUI-Easy-Use && rm easyuse.tar.gz && \
+    curl -fSL "https://github.com/jags111/efficiency-nodes-comfyui/archive/${EFFICIENCY_SHA}.tar.gz" -o efficiency.tar.gz && \
+    mkdir -p efficiency-nodes-comfyui && tar xzf efficiency.tar.gz --strip-components=1 -C efficiency-nodes-comfyui && rm efficiency.tar.gz
 
 # Init git repos with upstream remotes so ComfyUI-Manager can detect versions
 # and users can update via Manager at their own risk
@@ -92,7 +98,13 @@ RUN cd /tmp/build/ComfyUI && \
     git remote add origin https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
     cd /tmp/build/ComfyUI/custom_nodes/ComfyUI-Impact-Subpack && \
     git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "ComfyUI-Impact-Subpack ${IMPACT_SUBPACK_SHA}" && \
-    git remote add origin https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git
+    git remote add origin https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git && \
+    cd /tmp/build/ComfyUI/custom_nodes/ComfyUI-Easy-Use && \
+    git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "ComfyUI-Easy-Use ${EASYUSE_SHA}" && \
+    git remote add origin https://github.com/yolain/ComfyUI-Easy-Use.git && \
+    cd /tmp/build/ComfyUI/custom_nodes/efficiency-nodes-comfyui && \
+    git init && git add -A && git -c user.name=- -c user.email=- commit -q -m "efficiency-nodes-comfyui ${EFFICIENCY_SHA}" && \
+    git remote add origin https://github.com/jags111/efficiency-nodes-comfyui.git
 
 # Generate lock file for core requirements only, then install
 WORKDIR /tmp/build
