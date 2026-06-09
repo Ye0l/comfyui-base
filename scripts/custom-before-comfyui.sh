@@ -7,6 +7,8 @@ echo "[custom] custom-before-comfyui.sh started"
 
 # Optional.
 # If set, this script is downloaded and executed when system CUDA and torch CUDA mismatch.
+# Example:
+#   FIX_TORCH_SCRIPT_URL="https://example.com/fix_torch.sh"
 FIX_TORCH_SCRIPT_URL="${FIX_TORCH_SCRIPT_URL:-}"
 
 COMFYUI_DIR="${COMFYUI_DIR:-/workspace/runpod-slim/ComfyUI}"
@@ -25,6 +27,77 @@ DOWNLOADED_WORKFLOWS_DIR="$DOWNLOADED_MODELS_DIR/workflows"
 
 COMFYUI_MODELS_DIR="$COMFYUI_DIR/models"
 COMFYUI_WORKFLOWS_DIR="$COMFYUI_DIR/user/default/workflows"
+
+download_file() {
+  local url="$1"
+  local output="$2"
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$url" -o "$output"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$output" "$url"
+  else
+    echo "[custom] ERROR: neither curl nor wget found; cannot download: $url" >&2
+    exit 1
+  fi
+}
+
+normalize_cuda_minor() {
+  local version="${1:-}"
+
+  if [ -z "$version" ]; then
+    echo ""
+    return 0
+  fi
+
+  # 12.8.1 -> 12.8
+  # 12.8   -> 12.8
+  echo "$version" | awk -F. '{ if (NF >= 2) print $1 "." $2; else print $1 }'
+}
+
+cuda_version_to_torch_tag() {
+  local version="${1:-}"
+
+  if [ -z "$version" ]; then
+    echo ""
+    return 0
+  fi
+
+  # 12.4, 12.4.1 -> cu124
+  # 12.8, 12.8.1 -> cu128
+  echo "$version" | awk -F. '{ if (NF >= 2) print "cu" $1 $2; else print "" }'
+}
+
+run_fix_torch_script() {
+  local target_cuda_version="${1:-}"
+  local target_torch_tag
+  local fix_torch_script
+
+  target_torch_tag="$(cuda_version_to_torch_tag "$target_cuda_version")"
+
+  if [ -z "$FIX_TORCH_SCRIPT_URL" ]; then
+    echo "[custom] WARNING: FIX_TORCH_SCRIPT_URL is not set; skipping torch fix"
+    return 0
+  fi
+
+  if [ -z "$target_torch_tag" ]; then
+    echo "[custom] WARNING: target torch CUDA tag could not be determined from: $target_cuda_version"
+    echo "[custom] WARNING: skipping torch fix"
+    return 0
+  fi
+
+  echo "[custom] running FIX_TORCH_SCRIPT"
+  echo "[custom] from:   $FIX_TORCH_SCRIPT_URL"
+  echo "[custom] target: $target_torch_tag"
+
+  fix_torch_script="/tmp/fix_torch.sh"
+
+  download_file "$FIX_TORCH_SCRIPT_URL" "$fix_torch_script"
+
+  chmod +x "$fix_torch_script"
+
+  bash "$fix_torch_script" --fix "$target_torch_tag"
+}
 
 echo "[custom] installing huggingface-hub"
 "$PYTHON_EXE" -m pip install -U "huggingface-hub"
@@ -90,7 +163,7 @@ fi
 
 echo "[custom] checking CUDA / torch CUDA compatibility"
 
-if [ -x "$VENV_DIR/bin/activate" ]; then
+if [ -f "$VENV_DIR/bin/activate" ]; then
   # shellcheck disable=SC1091
   source "$VENV_DIR/bin/activate"
   PYTHON_EXE="python"
@@ -122,18 +195,6 @@ except Exception:
 PY
 )"
 
-normalize_cuda_minor() {
-  local version="${1:-}"
-  if [ -z "$version" ]; then
-    echo ""
-    return 0
-  fi
-
-  # 12.8.1 -> 12.8
-  # 12.8   -> 12.8
-  echo "$version" | awk -F. '{ if (NF >= 2) print $1 "." $2; else print $1 }'
-}
-
 SYSTEM_CUDA_MINOR="$(normalize_cuda_minor "$SYSTEM_CUDA_VERSION")"
 TORCH_CUDA_MINOR="$(normalize_cuda_minor "$TORCH_CUDA_VERSION")"
 
@@ -144,48 +205,10 @@ if [ -z "$SYSTEM_CUDA_MINOR" ]; then
   echo "[custom] WARNING: system CUDA version could not be detected; skipping torch fix"
 elif [ -z "$TORCH_CUDA_MINOR" ]; then
   echo "[custom] WARNING: torch CUDA version could not be detected"
-
-  if [ -n "$FIX_TORCH_SCRIPT_URL" ]; then
-    echo "[custom] running FIX_TORCH_SCRIPT because torch CUDA is missing"
-    FIX_TORCH_SCRIPT="/tmp/fix-torch.sh"
-
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL "$FIX_TORCH_SCRIPT_URL" -o "$FIX_TORCH_SCRIPT"
-    elif command -v wget >/dev/null 2>&1; then
-      wget -qO "$FIX_TORCH_SCRIPT" "$FIX_TORCH_SCRIPT_URL"
-    else
-      echo "[custom] ERROR: neither curl nor wget found; cannot download FIX_TORCH_SCRIPT_URL" >&2
-      exit 1
-    fi
-
-    chmod +x "$FIX_TORCH_SCRIPT"
-    bash "$FIX_TORCH_SCRIPT"
-  else
-    echo "[custom] WARNING: FIX_TORCH_SCRIPT_URL is not set; skipping torch fix"
-  fi
+  run_fix_torch_script "$SYSTEM_CUDA_MINOR"
 elif [ "$SYSTEM_CUDA_MINOR" != "$TORCH_CUDA_MINOR" ]; then
   echo "[custom] WARNING: CUDA mismatch detected: system=$SYSTEM_CUDA_MINOR torch=$TORCH_CUDA_MINOR"
-
-  if [ -n "$FIX_TORCH_SCRIPT_URL" ]; then
-    echo "[custom] running FIX_TORCH_SCRIPT"
-    echo "[custom] from: $FIX_TORCH_SCRIPT_URL"
-
-    FIX_TORCH_SCRIPT="/tmp/fix-torch.sh"
-
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL "$FIX_TORCH_SCRIPT_URL" -o "$FIX_TORCH_SCRIPT"
-    elif command -v wget >/dev/null 2>&1; then
-      wget -qO "$FIX_TORCH_SCRIPT" "$FIX_TORCH_SCRIPT_URL"
-    else
-      echo "[custom] ERROR: neither curl nor wget found; cannot download FIX_TORCH_SCRIPT_URL" >&2
-      exit 1
-    fi
-
-    chmod +x "$FIX_TORCH_SCRIPT"
-    bash "$FIX_TORCH_SCRIPT"
-  else
-    echo "[custom] WARNING: FIX_TORCH_SCRIPT_URL is not set; skipping torch fix"
-  fi
+  run_fix_torch_script "$SYSTEM_CUDA_MINOR"
 else
   echo "[custom] CUDA versions look compatible: $SYSTEM_CUDA_MINOR"
 fi
