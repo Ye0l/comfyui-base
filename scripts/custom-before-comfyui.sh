@@ -139,13 +139,44 @@ else
   echo "[custom] WARNING: workflows dir not found: $DOWNLOADED_WORKFLOWS_DIR"
 fi
 
+echo "[custom] installing comfy-cli"
+"$PYTHON_EXE" -m pip install -U comfy-cli
+
 echo "[custom] installing workflow dependencies"
 
 if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
-  while IFS= read -r req; do
-    echo "[custom] pip install -r $req"
-    "$PYTHON_EXE" -m pip install -r "$req"
-  done < <(find "$DOWNLOADED_WORKFLOWS_DIR" -type f -name "requirements.txt" | sort)
+  # comfy-cli가 ComfyUI를 인식하도록 cwd를 ComfyUI 디렉토리로 (--here)
+  while IFS= read -r wf; do
+    echo "[custom] comfy node install-deps --workflow=$wf"
+    (
+      cd "$COMFYUI_DIR" && \
+      comfy --here node install-deps --workflow="$wf" < /dev/null
+    ) || echo "[custom] WARNING: failed to install deps for $wf"
+  done < <(find "$DOWNLOADED_WORKFLOWS_DIR" -type f -name "*.json" | sort)
+
+  # 레지스트리에 없는 custom node는 git clone으로 수동 설치
+  KNOWN_CUSTOM_NODE_REPOS="${KNOWN_CUSTOM_NODE_REPOS:-https://github.com/An1X3R/Anima-Artist-Mixer}"
+  CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
+  mkdir -p "$CUSTOM_NODES_DIR"
+  while IFS= read -r repo_url; do
+    [ -z "$repo_url" ] && continue
+    repo_name=$(basename "$repo_url" .git)
+    target="$CUSTOM_NODES_DIR/$repo_name"
+    if [ -d "$target" ]; then
+      echo "[custom] $repo_name already installed"
+      continue
+    fi
+    echo "[custom] git clone $repo_url -> $target"
+    git clone --depth 1 "$repo_url" "$target" || {
+      echo "[custom] WARNING: failed to clone $repo_url"
+      continue
+    }
+    if [ -f "$target/requirements.txt" ]; then
+      echo "[custom] pip install -r $target/requirements.txt"
+      "$PYTHON_EXE" -m pip install -r "$target/requirements.txt" || \
+        echo "[custom] WARNING: pip install failed for $repo_name"
+    fi
+  done <<< "$KNOWN_CUSTOM_NODE_REPOS"
 
   while IFS= read -r script; do
     echo "[custom] running $script"
