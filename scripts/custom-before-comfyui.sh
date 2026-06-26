@@ -47,6 +47,32 @@ download_file() {
   fi
 }
 
+retry() {
+  local attempts="${RETRY_ATTEMPTS:-5}"
+  local delay="${RETRY_DELAY_SECONDS:-30}"
+  local timeout_seconds="${RETRY_TIMEOUT_SECONDS:-900}"
+  local n=1
+
+  while true; do
+    if command -v timeout >/dev/null 2>&1; then
+      if timeout "$timeout_seconds" "$@"; then
+        return 0
+      fi
+    elif "$@"; then
+      return 0
+    fi
+
+    if [ "$n" -ge "$attempts" ]; then
+      echo "[custom] ERROR: command failed after $attempts attempts: $*" >&2
+      return 1
+    fi
+
+    echo "[custom] WARNING: command failed, retrying in ${delay}s ($n/$attempts): $*" >&2
+    sleep "$delay"
+    n=$((n + 1))
+  done
+}
+
 normalize_cuda_minor() {
   local version="${1:-}"
 
@@ -122,10 +148,19 @@ echo "[custom] filter: filters/$HF_BUCKET_MODELS_FILTER"
 
 mkdir -p "$DOWNLOADED_FILTERS_DIR"
 
-"$HF_EXE" buckets cp "$HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" "$DOWNLOADED_FILTER_FILE"
+retry "$HF_EXE" buckets cp "$HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" "$DOWNLOADED_FILTER_FILE"
 
-"$HF_EXE" buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR" \
-  --filter-from "$DOWNLOADED_FILTER_FILE"
+echo "[custom] sync plan details"
+retry "$HF_EXE" buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR" \
+  --filter-from "$DOWNLOADED_FILTER_FILE" \
+  --ignore-times \
+  --dry-run \
+  --format json
+
+retry "$HF_EXE" buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR" \
+  --filter-from "$DOWNLOADED_FILTER_FILE" \
+  --ignore-times \
+  --verbose
 
 if [ ! -d "$DOWNLOADED_MODELS_DIR" ]; then
   echo "[custom] ERROR: downloaded models dir not found: $DOWNLOADED_MODELS_DIR" >&2
