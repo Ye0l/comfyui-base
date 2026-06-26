@@ -16,6 +16,7 @@ FIX_TORCH_SCRIPT_URL="${FIX_TORCH_SCRIPT_URL:-}"
 COMFYUI_DIR="${COMFYUI_DIR:-/workspace/runpod-slim/ComfyUI}"
 VENV_DIR="$COMFYUI_DIR/.venv-cu128"
 PYTHON_EXE="$VENV_DIR/bin/python"
+HF_EXE="$VENV_DIR/bin/hf"
 
 if [ ! -x "$PYTHON_EXE" ]; then
   echo "[custom] WARNING: venv python not found at $PYTHON_EXE, falling back to system python"
@@ -106,13 +107,13 @@ run_fix_torch_script() {
 echo "[custom] installing huggingface-hub"
 "$PYTHON_EXE" -m pip install -U "huggingface-hub"
 
-# Use the hf command from the venv if available
-export PATH="$VENV_DIR/bin:$PATH"
-
-command -v hf >/dev/null 2>&1 || {
-  echo "[custom] ERROR: hf command not found" >&2
+if [ ! -x "$HF_EXE" ]; then
+  echo "[custom] ERROR: hf command not found at $HF_EXE" >&2
   exit 1
-}
+fi
+
+echo "[custom] hf: $HF_EXE"
+"$HF_EXE" version
 
 echo "[custom] syncing models"
 echo "[custom] from: $HF_BUCKET_MODELS_URI"
@@ -121,9 +122,9 @@ echo "[custom] filter: filters/$HF_BUCKET_MODELS_FILTER"
 
 mkdir -p "$DOWNLOADED_FILTERS_DIR"
 
-hf buckets cp "$HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" "$DOWNLOADED_FILTER_FILE"
+"$HF_EXE" buckets cp "$HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" "$DOWNLOADED_FILTER_FILE"
 
-hf buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR" \
+"$HF_EXE" buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR" \
   --filter-from "$DOWNLOADED_FILTER_FILE"
 
 if [ ! -d "$DOWNLOADED_MODELS_DIR" ]; then
