@@ -4,6 +4,8 @@ set -euo pipefail
 echo "[custom] custom-before-comfyui.sh started"
 
 : "${HF_BUCKET_MODELS_URI:?HF_BUCKET_MODELS_URI is required}"
+: "${HF_BUCKET_MODELS_FILTER:?HF_BUCKET_MODELS_FILTER is required}"
+HF_BUCKET_MODELS_URI="${HF_BUCKET_MODELS_URI%/}"
 
 # Optional.
 # If set, this script is downloaded and executed when system CUDA and torch CUDA mismatch.
@@ -24,6 +26,8 @@ SYNC_ROOT="${SYNC_ROOT:-/workspace/hf-bucket-sync}"
 
 DOWNLOADED_MODELS_DIR="$SYNC_ROOT/models"
 DOWNLOADED_WORKFLOWS_DIR="$DOWNLOADED_MODELS_DIR/workflows"
+DOWNLOADED_FILTERS_DIR="$DOWNLOADED_MODELS_DIR/filters"
+DOWNLOADED_FILTER_FILE="$DOWNLOADED_FILTERS_DIR/$HF_BUCKET_MODELS_FILTER"
 
 COMFYUI_MODELS_DIR="$COMFYUI_DIR/models"
 COMFYUI_WORKFLOWS_DIR="$COMFYUI_DIR/user/default/workflows"
@@ -113,10 +117,14 @@ command -v hf >/dev/null 2>&1 || {
 echo "[custom] syncing models"
 echo "[custom] from: $HF_BUCKET_MODELS_URI"
 echo "[custom] to:   $DOWNLOADED_MODELS_DIR"
+echo "[custom] filter: filters/$HF_BUCKET_MODELS_FILTER"
 
-mkdir -p "$SYNC_ROOT"
+mkdir -p "$DOWNLOADED_FILTERS_DIR"
 
-hf buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR"
+hf buckets cp "$HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" "$DOWNLOADED_FILTER_FILE"
+
+hf buckets sync "$HF_BUCKET_MODELS_URI" "$DOWNLOADED_MODELS_DIR" \
+  --filter-from "$DOWNLOADED_FILTER_FILE"
 
 if [ ! -d "$DOWNLOADED_MODELS_DIR" ]; then
   echo "[custom] ERROR: downloaded models dir not found: $DOWNLOADED_MODELS_DIR" >&2
