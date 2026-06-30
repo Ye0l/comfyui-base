@@ -19,10 +19,13 @@ setup_ssh() {
         ssh-keygen -A -q
     fi
 
-    # If PUBLIC_KEY is provided, use it
-    if [[ $PUBLIC_KEY ]]; then
-        echo "$PUBLIC_KEY" >> ~/.ssh/authorized_keys
-        chmod 700 -R ~/.ssh
+    # Prefer RunPod's SSH_PUBLIC_KEY, then fall back to PUBLIC_KEY
+    SSH_KEY="${SSH_PUBLIC_KEY:-${PUBLIC_KEY:-}}"
+    
+    if [ -n "$SSH_KEY" ]; then
+        printf '%s\n' "$SSH_KEY" >> ~/.ssh/authorized_keys
+        chmod 700 ~/.ssh
+        chmod 600 ~/.ssh/authorized_keys
     else
         # Generate random password if no public key
         RANDOM_PASS=$(openssl rand -base64 12)
