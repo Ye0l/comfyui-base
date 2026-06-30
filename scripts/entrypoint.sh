@@ -132,6 +132,10 @@ if [ -n "$CUSTOM_HOOK" ] && [ -x "$CUSTOM_HOOK" ]; then
     if (!inserted && $0 ~ /^[[:space:]]*python[[:space:]]+main\.py[[:space:]]+\$FIXED_ARGS/) {
       print "echo \"[entrypoint] checking torch before custom hook\""
       print guard " pre-hook"
+      print "if [ ! -x \"$VENV_DIR/bin/hf\" ]; then"
+      print "  echo \"[entrypoint] ensuring hf CLI exists in the ComfyUI venv\""
+      print "  \"$VENV_DIR/bin/python\" -m pip install --force-reinstall --no-cache-dir huggingface-hub"
+      print "fi"
       print "echo \"[entrypoint] running custom hook before ComfyUI\""
       print "FIX_TORCH_SCRIPT_URL=\"\" " hook
       print "echo \"[entrypoint] custom hook finished\""
