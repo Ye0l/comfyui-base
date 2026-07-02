@@ -1,15 +1,19 @@
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
 echo "[custom] custom-before-comfyui.sh started"
 
-: "${HF_BUCKET_MODELS_URI:?HF_BUCKET_MODELS_URI is required}"
-: "${HF_BUCKET_MODELS_URI_2:?HF_BUCKET_MODELS_URI_2 is required}"
-: "${HF_BUCKET_MODELS_FILTER:?HF_BUCKET_MODELS_FILTER is required}"
+# 여러 URI는 세미콜론(;)으로 구분합니다.
+#
+# 권장:
+#   HF_BUCKET_MODELS_URIS="hf://buckets/user/models-a;hf://buckets/user/models-b"
+#
+# 기존 단일 변수도 하위 호환으로 지원합니다:
+#   HF_BUCKET_MODELS_URI="hf://buckets/user/models-a"
+HF_BUCKET_MODELS_URIS="${HF_BUCKET_MODELS_URIS:-${HF_BUCKET_MODELS_URI:-}}"
 
-HF_BUCKET_MODELS_URI="${HF_BUCKET_MODELS_URI%/}"
-HF_BUCKET_MODELS_URI_2="${HF_BUCKET_MODELS_URI_2%/}"
+: "${HF_BUCKET_MODELS_URIS:?HF_BUCKET_MODELS_URIS or HF_BUCKET_MODELS_URI is required}"
+: "${HF_BUCKET_MODELS_FILTER:?HF_BUCKET_MODELS_FILTER is required}"
 
 # Optional.
 # If set, this script is downloaded and executed when system CUDA and torch CUDA mismatch.
@@ -84,7 +88,13 @@ normalize_cuda_minor() {
 
   # 12.8.1 -> 12.8
   # 12.8   -> 12.8
-  echo "$version" | awk -F. '{ if (NF >= 2) print $1 "." $2; else print $1 }'
+  echo "$version" | awk -F. '{
+    if (NF >= 2) {
+      print $1 "." $2
+    } else {
+      print $1
+    }
+  }'
 }
 
 cuda_version_to_torch_tag() {
@@ -97,7 +107,13 @@ cuda_version_to_torch_tag() {
 
   # 12.4, 12.4.1 -> cu124
   # 12.8, 12.8.1 -> cu128
-  echo "$version" | awk -F. '{ if (NF >= 2) print "cu" $1 $2; else print "" }'
+  echo "$version" | awk -F. '{
+    if (NF >= 2) {
+      print "cu" $1 $2
+    } else {
+      print ""
+    }
+  }'
 }
 
 run_fix_torch_script() {
@@ -130,16 +146,50 @@ run_fix_torch_script() {
   bash "$fix_torch_script" --fix "$target_torch_tag"
 }
 
+trim_whitespace() {
+  local value="${1:-}"
+
+  # 앞뒤 공백 제거
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+
+  printf '%s' "$value"
+}
+
+parse_bucket_uris() {
+  local raw_uris="$1"
+  local uri
+
+  IFS=';' read -r -a RAW_HF_BUCKET_MODEL_URI_LIST <<< "$raw_uris"
+
+  HF_BUCKET_MODEL_URI_LIST=()
+
+  for uri in "${RAW_HF_BUCKET_MODEL_URI_LIST[@]}"; do
+    uri="$(trim_whitespace "$uri")"
+    uri="${uri%/}"
+
+    if [ -n "$uri" ]; then
+      HF_BUCKET_MODEL_URI_LIST+=("$uri")
+    fi
+  done
+
+  if [ "${#HF_BUCKET_MODEL_URI_LIST[@]}" -eq 0 ]; then
+    echo "[custom] ERROR: no valid Hugging Face bucket URI provided" >&2
+    exit 1
+  fi
+}
+
 sync_hf_bucket() {
   local bucket_uri="$1"
   local sync_index="$2"
+  local total_sync_uris="$3"
 
-  echo "[custom] syncing models source $sync_index"
+  echo "[custom] syncing models ($sync_index/$total_sync_uris)"
   echo "[custom] from:   $bucket_uri"
   echo "[custom] to:     $DOWNLOADED_MODELS_DIR"
   echo "[custom] filter: $DOWNLOADED_FILTER_FILE"
 
-  echo "[custom] sync plan details for source $sync_index"
+  echo "[custom] sync plan details ($sync_index/$total_sync_uris)"
 
   retry "$HF_EXE" buckets sync \
     "$bucket_uri" \
@@ -149,7 +199,7 @@ sync_hf_bucket() {
     --dry-run \
     --format json
 
-  echo "[custom] executing sync for source $sync_index"
+  echo "[custom] executing sync ($sync_index/$total_sync_uris)"
 
   retry "$HF_EXE" buckets sync \
     "$bucket_uri" \
@@ -158,8 +208,16 @@ sync_hf_bucket() {
     --ignore-times \
     --verbose
 
-  echo "[custom] source $sync_index sync completed"
+  echo "[custom] sync completed ($sync_index/$total_sync_uris)"
 }
+
+parse_bucket_uris "$HF_BUCKET_MODELS_URIS"
+
+echo "[custom] configured bucket URIs: ${#HF_BUCKET_MODEL_URI_LIST[@]}"
+
+for index in "${!HF_BUCKET_MODEL_URI_LIST[@]}"; do
+  echo "[custom] bucket $((index + 1)): ${HF_BUCKET_MODEL_URI_LIST[$index]}"
+done
 
 echo "[custom] installing huggingface-hub"
 "$PYTHON_EXE" -m pip install -U "huggingface-hub"
@@ -174,18 +232,29 @@ echo "[custom] hf: $HF_EXE"
 
 mkdir -p "$DOWNLOADED_FILTERS_DIR"
 
-echo "[custom] downloading shared sync filter"
-echo "[custom] from: $HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER"
+# 필터 파일은 첫 번째 버킷에서 한 번만 다운로드합니다.
+FIRST_HF_BUCKET_MODELS_URI="${HF_BUCKET_MODEL_URI_LIST[0]}"
+
+echo "[custom] downloading shared models filter"
+echo "[custom] from: $FIRST_HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER"
 echo "[custom] to:   $DOWNLOADED_FILTER_FILE"
 
 retry "$HF_EXE" buckets cp \
-  "$HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" \
+  "$FIRST_HF_BUCKET_MODELS_URI/filters/$HF_BUCKET_MODELS_FILTER" \
   "$DOWNLOADED_FILTER_FILE"
 
-# 두 버킷을 같은 로컬 디렉터리에 순서대로 병합합니다.
-# 동일한 경로의 파일이 양쪽 버킷에 존재하면 두 번째 버킷의 파일이 최종적으로 적용될 수 있습니다.
-sync_hf_bucket "$HF_BUCKET_MODELS_URI" "1/2"
-sync_hf_bucket "$HF_BUCKET_MODELS_URI_2" "2/2"
+TOTAL_SYNC_URIS="${#HF_BUCKET_MODEL_URI_LIST[@]}"
+SYNC_INDEX=0
+
+# 모든 버킷을 같은 로컬 디렉터리에 순서대로 동기화합니다.
+for bucket_uri in "${HF_BUCKET_MODEL_URI_LIST[@]}"; do
+  SYNC_INDEX=$((SYNC_INDEX + 1))
+
+  sync_hf_bucket \
+    "$bucket_uri" \
+    "$SYNC_INDEX" \
+    "$TOTAL_SYNC_URIS"
+done
 
 if [ ! -d "$DOWNLOADED_MODELS_DIR" ]; then
   echo "[custom] ERROR: downloaded models dir not found: $DOWNLOADED_MODELS_DIR" >&2
@@ -217,6 +286,7 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
   # comfy-cli가 ComfyUI를 인식하도록 cwd를 ComfyUI 디렉터리로 설정합니다.
   while IFS= read -r wf; do
     echo "[custom] comfy node install-deps --workflow=$wf"
+
     (
       cd "$COMFYUI_DIR" && \
       comfy --here node install-deps --workflow="$wf" < /dev/null
@@ -235,6 +305,8 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
   mkdir -p "$CUSTOM_NODES_DIR"
 
   while IFS= read -r repo_url; do
+    repo_url="$(trim_whitespace "$repo_url")"
+
     [ -z "$repo_url" ] && continue
 
     repo_name="$(basename "$repo_url" .git)"
@@ -262,6 +334,7 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
 
   while IFS= read -r script; do
     echo "[custom] running $script"
+
     chmod +x "$script"
     bash "$script"
   done < <(
@@ -284,6 +357,7 @@ echo "[custom] checking CUDA / torch CUDA compatibility"
 if [ -f "$VENV_DIR/bin/activate" ]; then
   # shellcheck disable=SC1091
   source "$VENV_DIR/bin/activate"
+
   PYTHON_EXE="python"
 
   echo "[custom] venv activated: $VENV_DIR"
@@ -333,4 +407,3 @@ else
 fi
 
 echo "[custom] done"
-```
