@@ -304,33 +304,34 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
 
   mkdir -p "$CUSTOM_NODES_DIR"
 
-  while IFS= read -r repo_url; do
+  IFS=';' read -r -a CUSTOM_NODE_REPO_LIST <<< "$KNOWN_CUSTOM_NODE_REPOS"
+  
+  for repo_url in "${CUSTOM_NODE_REPO_LIST[@]}"; do
     repo_url="$(trim_whitespace "$repo_url")"
-
     [ -z "$repo_url" ] && continue
-
+  
     repo_name="$(basename "$repo_url" .git)"
     target="$CUSTOM_NODES_DIR/$repo_name"
-
+  
     if [ -d "$target" ]; then
       echo "[custom] $repo_name already installed"
       continue
     fi
-
+  
     echo "[custom] git clone $repo_url -> $target"
-
+  
     git clone --depth 1 "$repo_url" "$target" || {
       echo "[custom] WARNING: failed to clone $repo_url"
       continue
     }
-
+  
     if [ -f "$target/requirements.txt" ]; then
       echo "[custom] pip install -r $target/requirements.txt"
-
+  
       "$PYTHON_EXE" -m pip install -r "$target/requirements.txt" || \
         echo "[custom] WARNING: pip install failed for $repo_name"
     fi
-  done <<< "$KNOWN_CUSTOM_NODE_REPOS"
+  done
 
   while IFS= read -r script; do
     echo "[custom] running $script"
