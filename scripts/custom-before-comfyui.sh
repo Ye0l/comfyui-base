@@ -283,22 +283,7 @@ echo "[custom] installing comfy-cli"
 echo "[custom] installing workflow dependencies"
 
 if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
-  # comfy-cli가 ComfyUI를 인식하도록 cwd를 ComfyUI 디렉터리로 설정합니다.
-  while IFS= read -r wf; do
-    echo "[custom] comfy node install-deps --workflow=$wf"
-
-    (
-      cd "$COMFYUI_DIR" && \
-      comfy --here node install-deps --workflow="$wf" < /dev/null
-    ) || echo "[custom] WARNING: failed to install deps for $wf"
-  done < <(
-    find "$DOWNLOADED_WORKFLOWS_DIR" \
-      -type f \
-      -name "*.json" \
-      | sort
-  )
-
-  # 레지스트리에 없는 custom node는 git clone으로 수동 설치합니다.
+  # 레지스트리에 없는 custom node는 workflow dependency 설치 전에 git clone으로 수동 설치합니다.
   KNOWN_CUSTOM_NODE_REPOS="${KNOWN_CUSTOM_NODE_REPOS:-https://github.com/An1X3R/Anima-Artist-Mixer}"
   CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
 
@@ -332,6 +317,21 @@ if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
         echo "[custom] WARNING: pip install failed for $repo_name"
     fi
   done
+
+  # comfy-cli가 ComfyUI를 인식하도록 cwd를 ComfyUI 디렉터리로 설정합니다.
+  while IFS= read -r wf; do
+    echo "[custom] comfy node install-deps --workflow=$wf"
+
+    (
+      cd "$COMFYUI_DIR" && \
+      comfy --here node install-deps --workflow="$wf" < /dev/null
+    ) || echo "[custom] WARNING: failed to install deps for $wf"
+  done < <(
+    find "$DOWNLOADED_WORKFLOWS_DIR" \
+      -type f \
+      -name "*.json" \
+      | sort
+  )
 
   while IFS= read -r script; do
     echo "[custom] running $script"
