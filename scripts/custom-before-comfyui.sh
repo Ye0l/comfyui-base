@@ -3,6 +3,19 @@ set -euo pipefail
 
 echo "[custom] custom-before-comfyui.sh started"
 
+echo "[custom] installing terminal utilities and UTF-8 locales"
+apt update
+DEBIAN_FRONTEND=noninteractive apt install -y btop vim locales
+
+sed -i \
+  -e 's/^# *\(ko_KR.UTF-8 UTF-8\)/\1/' \
+  -e 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' \
+  /etc/locale.gen
+
+locale-gen
+export LANG=ko_KR.UTF-8
+export LC_ALL=ko_KR.UTF-8
+
 # 여러 URI는 세미콜론(;)으로 구분합니다.
 #
 # 권장:
