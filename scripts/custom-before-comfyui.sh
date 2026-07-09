@@ -99,8 +99,6 @@ normalize_cuda_minor() {
     return 0
   fi
 
-  # 12.8.1 -> 12.8
-  # 12.8   -> 12.8
   echo "$version" | awk -F. '{
     if (NF >= 2) {
       print $1 "." $2
@@ -118,8 +116,6 @@ cuda_version_to_torch_tag() {
     return 0
   fi
 
-  # 12.4, 12.4.1 -> cu124
-  # 12.8, 12.8.1 -> cu128
   echo "$version" | awk -F. '{
     if (NF >= 2) {
       print "cu" $1 $2
@@ -162,7 +158,6 @@ run_fix_torch_script() {
 trim_whitespace() {
   local value="${1:-}"
 
-  # 앞뒤 공백 제거
   value="${value#"${value%%[![:space:]]*}"}"
   value="${value%"${value##*[![:space:]]}"}"
 
@@ -245,7 +240,6 @@ echo "[custom] hf: $HF_EXE"
 
 mkdir -p "$DOWNLOADED_FILTERS_DIR"
 
-# 필터 파일은 첫 번째 버킷에서 한 번만 다운로드합니다.
 FIRST_HF_BUCKET_MODELS_URI="${HF_BUCKET_MODEL_URI_LIST[0]}"
 
 echo "[custom] downloading shared models filter"
@@ -259,7 +253,6 @@ retry "$HF_EXE" buckets cp \
 TOTAL_SYNC_URIS="${#HF_BUCKET_MODEL_URI_LIST[@]}"
 SYNC_INDEX=0
 
-# 모든 버킷을 같은 로컬 디렉터리에 순서대로 동기화합니다.
 for bucket_uri in "${HF_BUCKET_MODEL_URI_LIST[@]}"; do
   SYNC_INDEX=$((SYNC_INDEX + 1))
 
@@ -296,55 +289,39 @@ echo "[custom] installing comfy-cli"
 echo "[custom] installing workflow dependencies"
 
 if [ -d "$DOWNLOADED_WORKFLOWS_DIR" ]; then
-  # 레지스트리에 없는 custom node는 workflow dependency 설치 전에 git clone으로 수동 설치합니다.
   KNOWN_CUSTOM_NODE_REPOS="${KNOWN_CUSTOM_NODE_REPOS:-https://github.com/An1X3R/Anima-Artist-Mixer}"
   CUSTOM_NODES_DIR="$COMFYUI_DIR/custom_nodes"
 
   mkdir -p "$CUSTOM_NODES_DIR"
 
   IFS=';' read -r -a CUSTOM_NODE_REPO_LIST <<< "$KNOWN_CUSTOM_NODE_REPOS"
-  
+
   for repo_url in "${CUSTOM_NODE_REPO_LIST[@]}"; do
     repo_url="$(trim_whitespace "$repo_url")"
     [ -z "$repo_url" ] && continue
-  
+
     repo_name="$(basename "$repo_url" .git)"
     target="$CUSTOM_NODES_DIR/$repo_name"
-  
+
     if [ -d "$target" ]; then
       echo "[custom] $repo_name already installed"
       continue
     fi
-  
+
     echo "[custom] git clone $repo_url -> $target"
-  
+
     git clone --depth 1 "$repo_url" "$target" || {
       echo "[custom] WARNING: failed to clone $repo_url"
       continue
     }
-  
+
     if [ -f "$target/requirements.txt" ]; then
       echo "[custom] pip install -r $target/requirements.txt"
-  
+
       "$PYTHON_EXE" -m pip install -r "$target/requirements.txt" || \
         echo "[custom] WARNING: pip install failed for $repo_name"
     fi
   done
-
-  # comfy-cli가 ComfyUI를 인식하도록 cwd를 ComfyUI 디렉터리로 설정합니다.
-  while IFS= read -r wf; do
-    echo "[custom] comfy node install-deps --workflow=$wf"
-
-    (
-      cd "$COMFYUI_DIR" && \
-      comfy --here node install-deps --workflow="$wf" < /dev/null
-    ) || echo "[custom] WARNING: failed to install deps for $wf"
-  done < <(
-    find "$DOWNLOADED_WORKFLOWS_DIR" \
-      -type f \
-      -name "*.json" \
-      | sort
-  )
 
   while IFS= read -r script; do
     echo "[custom] running $script"
@@ -369,7 +346,6 @@ fi
 echo "[custom] checking CUDA / torch CUDA compatibility"
 
 if [ -f "$VENV_DIR/bin/activate" ]; then
-  # shellcheck disable=SC1091
   source "$VENV_DIR/bin/activate"
 
   PYTHON_EXE="python"
