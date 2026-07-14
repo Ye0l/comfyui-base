@@ -12,9 +12,6 @@ variable "MANAGER_SHA" {
 variable "KJNODES_SHA" {
   default = "4e1458c2417d"
 }
-variable "RUNPODDIRECT_SHA" {
-  default = "8be7b2206b75"
-}
 variable "IMPACT_PACK_SHA" {
   default = "429d0159ad42"
 }
@@ -68,8 +65,6 @@ target "common" {
     COMFYUI_VERSION     = COMFYUI_VERSION
     MANAGER_SHA         = MANAGER_SHA
     KJNODES_SHA         = KJNODES_SHA
-    CIVICOMFY_SHA       = CIVICOMFY_SHA
-    RUNPODDIRECT_SHA    = RUNPODDIRECT_SHA
     IMPACT_PACK_SHA     = IMPACT_PACK_SHA
     IMPACT_SUBPACK_SHA  = IMPACT_SUBPACK_SHA
     TORCH_VERSION       = TORCH_VERSION
