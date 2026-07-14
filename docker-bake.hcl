@@ -4,16 +4,13 @@ variable "TAG" {
 
 # === Version Pins (single source of truth) ===
 variable "COMFYUI_VERSION" {
-  default = "v0.18.2"
+  default = "v0.27.0"
 }
 variable "MANAGER_SHA" {
   default = "66108ccdbc8c"
 }
 variable "KJNODES_SHA" {
   default = "4e1458c2417d"
-}
-variable "CIVICOMFY_SHA" {
-  default = "555e984bbcb0"
 }
 variable "RUNPODDIRECT_SHA" {
   default = "8be7b2206b75"
